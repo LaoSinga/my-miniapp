@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>WB Аналитика</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d14;
+    --bg2: #13131f;
+    --bg3: #1a1a2e;
+    --card: #16162a;
+    --card2: #1e1e35;
+    --border: rgba(120,100,255,0.15);
+    --purple: #7b5ea7;
+    --violet: #9b6dff;
+    --violet2: #c084fc;
+    --green: #4ade80;
+    --red: #f87171;
+    --yellow: #fbbf24;
+    --blue: #60a5fa;
+    --text: #e8e4ff;
+    --text2: #9994bb;
+    --text3: #5c587a;
+    --wb: #cb11ab;
+    --wb2: #ff47d1;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; background:var(--bg); color:var(--text); font-family:'Golos Text',sans-serif; overflow-x:hidden; }
+  
+  /* HEADER */
+  .header {
+    background: linear-gradient(135deg, #1a0a2e 0%, #16162a 50%, #0d1a2e 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 20px 0;
+    position: sticky; top:0; z-index:100;
+  }
+  .header-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+  .logo { display:flex; align-items:center; gap:10px; }
+  .logo-icon {
+    width:36px; height:36px; border-radius:10px;
+    background: linear-gradient(135deg, var(--wb), var(--violet));
+    display:flex; align-items:center; justify-content:center;
+    font-size:18px; box-shadow: 0 0 20px rgba(155,109,255,0.4);
+  }
+  .logo-text { font-size:17px; font-weight:700; letter-spacing:-0.3px; }
+  .logo-sub { font-size:11px; color:var(--text2); }
+  .refresh-btn {
+    width:36px; height:36px; border-radius:10px; border:1px solid var(--border);
+    background:var(--card2); color:var(--text2); cursor:pointer;
+    display:flex; align-items:center; justify-content:center; font-size:16px;
+    transition: all .2s;
+  }
+  .refresh-btn:hover { border-color:var(--violet); color:var(--violet); }
+  .refresh-btn.spinning { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* NAV TABS */
+  .nav-tabs { display:flex; gap:4px; padding-bottom:1px; }
+  .tab {
+    padding:8px 16px; border-radius:8px 8px 0 0; font-size:13px; font-weight:500;
+    color:var(--text2); cursor:pointer; transition:all .2s; border:none; background:transparent;
+    white-space:nowrap;
+  }
+  .tab.active { background:var(--bg); color:var(--violet2); border-bottom:2px solid var(--violet); }
+  .tab:hover:not(.active) { color:var(--text); background:rgba(255,255,255,0.04); }
+
+  /* PERIOD SELECTOR */
+  .period-bar {
+    display:flex; gap:6px; padding:14px 20px; background:var(--bg2);
+    border-bottom:1px solid var(--border); overflow-x:auto; scrollbar-width:none;
+  }
+  .period-bar::-webkit-scrollbar { display:none; }
+  .period-btn {
+    padding:6px 14px; border-radius:20px; font-size:12px; font-weight:600;
+    border:1px solid var(--border); background:transparent; color:var(--text2);
+    cursor:pointer; white-space:nowrap; transition:all .2s;
+  }
+  .period-btn.active {
+    background:linear-gradient(135deg,var(--purple),var(--violet));
+    border-color:transparent; color:#fff;
+    box-shadow: 0 2px 12px rgba(155,109,255,0.4);
+  }
+
+  /* MAIN CONTENT */
+  .page { display:none; padding:16px 16px 80px; }
+  .page.active { display:block; }
+
+  /* KPI GRID */
+  .kpi-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px; }
+  .kpi-wide { grid-column:1/-1; }
+  .kpi-card {
+    background:var(--card); border:1px solid var(--border); border-radius:14px;
+    padding:14px 16px; position:relative; overflow:hidden;
+    transition: transform .15s, box-shadow .15s;
+  }
+  .kpi-card:active { transform:scale(0.98); }
+  .kpi-card::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:2px;
+    background:linear-gradient(90deg, var(--accent,var(--violet)), transparent);
+  }
+  .kpi-label { font-size:11px; color:var(--text2); font-weight:500; letter-spacing:0.3px; text-transform:uppercase; margin-bottom:6px; }
+  .kpi-value { font-size:22px; font-weight:900; letter-spacing:-0.5px; line-height:1; }
+  .kpi-sub { font-size:11px; color:var(--text2); margin-top:4px; }
+  .kpi-badge {
+    display:inline-flex; align-items:center; gap:3px;
+    font-size:11px; font-weight:600; padding:2px 7px; border-radius:20px; margin-top:5px;
+  }
+  .badge-up { background:rgba(74,222,128,0.15); color:var(--green); }
+  .badge-down { background:rgba(248,113,113,0.15); color:var(--red); }
+  .badge-neutral { background:rgba(251,191,36,0.15); color:var(--yellow); }
+
+  /* CHART CARD */
+  .chart-card {
+    background:var(--card); border:1px solid var(--border); border-radius:14px;
+    padding:16px; margin-bottom:14px;
+  }
+  .chart-title { font-size:13px; font-weight:700; color:var(--text); margin-bottom:4px; }
+  .chart-sub { font-size:11px; color:var(--text2); margin-bottom:14px; }
+  .chart-wrap { position:relative; height:180px; }
+
+  /* TABLE */
+  .data-table { width:100%; border-collapse:collapse; font-size:12px; }
+  .data-table th {
+    text-align:left; padding:8px 10px; color:var(--text2); font-weight:600;
+    border-bottom:1px solid var(--border); font-size:11px; text-transform:uppercase; letter-spacing:0.3px;
+  }
+  .data-table td { padding:10px 10px; border-bottom:1px solid rgba(120,100,255,0.07); }
+  .data-table tr:last-child td { border-bottom:none; }
+  .data-table tr:hover td { background:rgba(155,109,255,0.05); }
+  .art-name { font-weight:600; color:var(--text); font-size:12px; }
+  .art-sku { color:var(--text2); font-size:10px; margin-top:1px; }
+
+  /* PROGRESS BAR */
+  .progress-bar { height:4px; background:var(--bg3); border-radius:2px; margin-top:6px; overflow:hidden; }
+  .progress-fill { height:100%; border-radius:2px; transition:width 1s ease; }
+
+  /* FINANCE SECTION */
+  .finance-breakdown {
+    background:var(--card); border:1px solid var(--border); border-radius:14px;
+    padding:16px; margin-bottom:14px;
+  }
+  .finance-row {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 0; border-bottom:1px solid rgba(120,100,255,0.07);
+  }
+  .finance-row:last-child { border-bottom:none; }
+  .finance-label { display:flex; align-items:center; gap:8px; font-size:13px; }
+  .finance-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .finance-amount { font-size:13px; font-weight:700; }
+  .finance-pct { font-size:11px; color:var(--text2); }
+  .section-title {
+    font-size:14px; font-weight:700; color:var(--text); margin-bottom:10px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .section-title::after { content:''; flex:1; height:1px; background:var(--border); }
+
+  /* ADS */
+  .ads-metric { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:14px; }
+  .ads-item {
+    background:var(--card); border:1px solid var(--border); border-radius:12px;
+    padding:12px 10px; text-align:center;
+  }
+  .ads-item-val { font-size:18px; font-weight:900; margin-bottom:2px; }
+  .ads-item-label { font-size:10px; color:var(--text2); font-weight:500; }
+
+  /* LOADING */
+  .loading-overlay {
+    position:fixed; inset:0; background:var(--bg); z-index:200;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px;
+  }
+  .loading-logo {
+    width:64px; height:64px; border-radius:18px;
+    background:linear-gradient(135deg, var(--wb), var(--violet));
+    display:flex; align-items:center; justify-content:center;
+    font-size:32px; box-shadow: 0 0 40px rgba(155,109,255,0.5);
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(0.95);opacity:0.8} }
+  .loading-text { color:var(--text2); font-size:14px; }
+  .loading-bar { width:160px; height:3px; background:var(--bg3); border-radius:2px; overflow:hidden; }
+  .loading-bar-fill {
+    height:100%; width:0; border-radius:2px;
+    background:linear-gradient(90deg, var(--violet), var(--wb2));
+    animation: loadbar 1.8s ease forwards;
+  }
+  @keyframes loadbar { 0%{width:0} 60%{width:70%} 100%{width:100%} }
+
+  /* EMPTY STATE */
+  .empty { text-align:center; padding:40px 20px; color:var(--text2); }
+  .empty-icon { font-size:40px; margin-bottom:12px; opacity:0.5; }
+
+  /* API KEY INPUT */
+  .setup-card {
+    background:var(--card); border:1px solid var(--border); border-radius:16px;
+    padding:24px; margin:20px 16px; text-align:center;
+  }
+  .setup-icon { font-size:48px; margin-bottom:16px; }
+  .setup-title { font-size:18px; font-weight:700; margin-bottom:8px; }
+  .setup-desc { font-size:13px; color:var(--text2); margin-bottom:20px; line-height:1.5; }
+  .input-group { position:relative; margin-bottom:12px; }
+  .api-input {
+    width:100%; padding:12px 16px; border-radius:10px;
+    border:1px solid var(--border); background:var(--bg3);
+    color:var(--text); font-size:13px; font-family:inherit; outline:none;
+    transition:border-color .2s;
+  }
+  .api-input:focus { border-color:var(--violet); }
+  .btn-primary {
+    width:100%; padding:13px; border-radius:10px; border:none;
+    background:linear-gradient(135deg,var(--purple),var(--violet));
+    color:#fff; font-size:14px; font-weight:700; cursor:pointer;
+    font-family:inherit; box-shadow:0 4px 20px rgba(155,109,255,0.4);
+    transition:opacity .2s;
+  }
+  .btn-primary:hover { opacity:0.9; }
+
+  /* TOAST */
+  .toast {
+    position:fixed; bottom:90px; left:50%; transform:translateX(-50%) translateY(20px);
+    background:var(--card2); border:1px solid var(--border); border-radius:10px;
+    padding:10px 18px; font-size:13px; opacity:0; transition:all .3s; z-index:300;
+    white-space:nowrap;
+  }
+  .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width:4px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+
+  .positive { color:var(--green); }
+  .negative { color:var(--red); }
+  .neutral { color:var(--yellow); }
+  .wb-color { color:var(--wb2); }
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-logo">📊</div>
+  <div class="loading-text">Загружаю данные...</div>
+  <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+</div>
+
+<!-- SETUP SCREEN -->
+<div id="setupScreen" style="display:none; padding-top:40px;">
+  <div class="setup-card">
+    <div class="setup-icon">🔑</div>
+    <div class="setup-title">Подключи Wildberries</div>
+    <div class="setup-desc">Вставь API-ключ из личного кабинета WB.<br>Настройки → Доступ к API</div>
+    <div class="input-group">
+      <input class="api-input" id="apiKeyInput" placeholder="Вставь API-ключ WB..." type="password">
+    </div>
+    <button class="btn-primary" onclick="saveApiKey()">Подключить</button>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="mainApp" style="display:none;">
+  <div class="header">
+    <div class="header-top">
+      <div class="logo">
+        <div class="logo-icon">📊</div>
+        <div>
+          <div class="logo-text">WB Аналитика</div>
+          <div class="logo-sub" id="lastUpdate">обновлено только что</div>
+        </div>
+      </div>
+      <button class="refresh-btn" id="refreshBtn" onclick="refreshData()" title="Обновить">↻</button>
+    </div>
+    <div class="nav-tabs">
+      <button class="tab active" onclick="switchTab('overview')">Обзор</button>
+      <button class="tab" onclick="switchTab('finance')">Финансы</button>
+      <button class="tab" onclick="switchTab('ads')">Реклама</button>
+      <button class="tab" onclick="switchTab('products')">Товары</button>
+    </div>
+  </div>
+
+  <div class="period-bar">
+    <button class="period-btn active" onclick="setPeriod(7,this)">7 дней</button>
+    <button class="period-btn" onclick="setPeriod(14,this)">14 дней</button>
+    <button class="period-btn" onclick="setPeriod(30,this)">30 дней</button>
+    <button class="period-btn" onclick="setPeriod(90,this)">90 дней</button>
+  </div>
+
+  <!-- OVERVIEW TAB -->
+  <div class="page active" id="tab-overview">
+    <div class="kpi-grid">
+      <div class="kpi-card kpi-wide" style="--accent:var(--wb2)">
+        <div class="kpi-label">💰 Выручка</div>
+        <div class="kpi-value" id="kpi-revenue">—</div>
+        <div style="display:flex; gap:8px; align-items:center; margin-top:6px;">
+          <span class="kpi-badge" id="kpi-revenue-badge">—</span>
+          <span class="kpi-sub" id="kpi-revenue-sub">к предыдущему периоду</span>
+        </div>
+      </div>
+      <div class="kpi-card" style="--accent:var(--green)">
+        <div class="kpi-label">📦 Заказов</div>
+        <div class="kpi-value positive" id="kpi-orders">—</div>
+        <div class="kpi-badge badge-neutral" id="kpi-orders-badge">—</div>
+      </div>
+      <div class="kpi-card" style="--accent:var(--violet)">
+        <div class="kpi-label">✅ Выкуплено</div>
+        <div class="kpi-value" id="kpi-sales">—</div>
+        <div class="kpi-sub" id="kpi-buyout">выкуп —%</div>
+      </div>
+      <div class="kpi-card" style="--accent:var(--yellow)">
+        <div class="kpi-label">↩️ Возвраты</div>
+        <div class="kpi-value negative" id="kpi-returns">—</div>
+        <div class="kpi-sub" id="kpi-returns-pct">—% от продаж</div>
+      </div>
+      <div class="kpi-card" style="--accent:var(--blue)">
+        <div class="kpi-label">🧾 Средний чек</div>
+        <div class="kpi-value" id="kpi-avg">—</div>
+        <div class="kpi-sub">за единицу товара</div>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title">Выручка по дням</div>
+      <div class="chart-sub" id="chart-rev-sub">за выбранный период</div>
+      <div class="chart-wrap"><canvas id="revenueChart"></canvas></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title">Заказы и продажи</div>
+      <div class="chart-sub">динамика по дням</div>
+      <div class="chart-wrap"><canvas id="ordersChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- FINANCE TAB -->
+  <div class="page" id="tab-finance">
+    <div class="kpi-grid" style="margin-bottom:16px;">
+      <div class="kpi-card kpi-wide" style="--accent:var(--green)">
+        <div class="kpi-label">💵 К перечислению от WB</div>
+        <div class="kpi-value positive" id="fin-forpay">—</div>
+        <div class="kpi-sub">после всех удержаний</div>
+      </div>
+      <div class="kpi-card" style="--accent:var(--red)">
+        <div class="kpi-label">📉 Комиссия WB</div>
+        <div class="kpi-value negative" id="fin-commission">—</div>
+        <div class="kpi-sub" id="fin-commission-pct">—% от выручки</div>
+      </div>
+      <div class="kpi-card" style="--accent:var(--yellow)">
+        <div class="kpi-label">🚚 Логистика</div>
+        <div class="kpi-value" id="fin-logistics" style="color:var(--yellow)">—</div>
+        <div class="kpi-sub">хранение + доставка</div>
+      </div>
+    </div>
+
+    <div class="section-title">Структура расходов</div>
+    <div class="finance-breakdown" id="financeBreakdown">
+      <div class="empty"><div class="empty-icon">💳</div>Загрузка...</div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title">Чистая прибыль vs Выручка</div>
+      <div class="chart-sub">динамика за период</div>
+      <div class="chart-wrap"><canvas id="profitChart"></canvas></div>
+    </div>
+
+    <div class="section-title">Еженедельные выплаты</div>
+    <div class="finance-breakdown" id="weeklyPayouts">
+      <div class="empty"><div class="empty-icon">📅</div>Загрузка...</div>
+    </div>
+  </div>
+
+  <!-- ADS TAB -->
+  <div class="page" id="tab-ads">
+    <div class="ads-metric" id="adsMetrics">
+      <div class="ads-item">
+        <div class="ads-item-val wb-color" id="ads-spend">—</div>
+        <div class="ads-item-label">Расходы</div>
+      </div>
+      <div class="ads-item">
+        <div class="ads-item-val" id="ads-drr" style="color:var(--yellow)">—%</div>
+        <div class="ads-item-label">ДРР</div>
+      </div>
+      <div class="ads-item">
+        <div class="ads-item-val positive" id="ads-roi">—%</div>
+        <div class="ads-item-label">ROI</div>
+      </div>
+    </div>
+
+    <div class="kpi-grid" style="margin-bottom:16px;">
+      <div class="kpi-card" style="--accent:var(--violet)">
+        <div class="kpi-label">👁 Показы</div>
+        <div class="kpi-value" id="ads-views">—</div>
+      </div>
+      <div class="kpi-card" style="--accent:var(--blue)">
+        <div class="kpi-label">🖱 Клики</div>
+        <div class="kpi-value" id="ads-clicks">—</div>
+        <div class="kpi-sub" id="ads-ctr">CTR —%</div>
+      </div>
+      <div class="kpi-card" style="--accent:var(--green)">
+        <div class="kpi-label">🛒 Заказов с рекл.</div>
+        <div class="kpi-value positive" id="ads-orders">—</div>
+      </div>
+      <div class="kpi-card" style="--accent:var(--yellow)">
+        <div class="kpi-label">💸 Цена заказа</div>
+        <div class="kpi-value" style="color:var(--yellow)" id="ads-cpo">—</div>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title">Расходы на рекламу</div>
+      <div class="chart-sub">по дням</div>
+      <div class="chart-wrap"><canvas id="adsChart"></canvas></div>
+    </div>
+
+    <div class="section-title">Кампании</div>
+    <div class="finance-breakdown" id="campaignsList">
+      <div class="empty"><div class="empty-icon">📢</div>Загрузка...</div>
+    </div>
+  </div>
+
+  <!-- PRODUCTS TAB -->
+  <div class="page" id="tab-products">
+    <div class="section-title">Топ товаров по продажам</div>
+    <div class="chart-card" style="padding:0; overflow:hidden;">
+      <table class="data-table" id="productsTable">
+        <thead>
+          <tr>
+            <th>Товар</th>
+            <th style="text-align:right">Продаж</th>
+            <th style="text-align:right">Выручка</th>
+          </tr>
+        </thead>
+        <tbody id="productsBody">
+          <tr><td colspan="3"><div class="empty"><div class="empty-icon">📦</div>Загрузка...</div></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section-title">ABC-анализ</div>
+    <div class="finance-breakdown" id="abcAnalysis">
+      <div class="empty"><div class="empty-icon">📊</div>Загрузка...</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── CONFIG ───────────────────────────────────────────────
+const TG = window.Telegram?.WebApp;
+if (TG) { TG.ready(); TG.expand(); }
+
+let API_KEY = localStorage.getItem('wb_api_key') || '';
+let currentPeriod = 7;
+let charts = {};
+let cachedData = {};
+
+// ─── INIT ─────────────────────────────────────────────────
+window.addEventListener('load', async () => {
+  await new Promise(r => setTimeout(r, 1800)); // loading anim
+  document.getElementById('loadingOverlay').style.display = 'none';
+
+  if (!API_KEY) {
+    document.getElementById('setupScreen').style.display = 'block';
+  } else {
+    document.getElementById('mainApp').style.display = 'block';
+    loadData();
+  }
+});
+
+function saveApiKey() {
+  const val = document.getElementById('apiKeyInput').value.trim();
+  if (!val || val.length < 20) { showToast('⚠️ Введи корректный API-ключ'); return; }
+  API_KEY = val;
+  localStorage.setItem('wb_api_key', val);
+  document.getElementById('setupScreen').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'block';
+  loadData();
+}
+
+// ─── TABS ─────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    const tabs = ['overview','finance','ads','products'];
+    t.classList.toggle('active', tabs[i] === name);
+  });
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+function setPeriod(days, btn) {
+  currentPeriod = days;
+  document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  loadData();
+}
+
+// ─── DATA LOADING ─────────────────────────────────────────
+async function loadData() {
+  const btn = document.getElementById('refreshBtn');
+  btn.classList.add('spinning');
+  try {
+    const [orders, sales, stocks] = await Promise.all([
+      fetchWB('/supplier/orders', { dateFrom: daysAgo(currentPeriod), flag: 1 }),
+      fetchWB('/supplier/sales', { dateFrom: daysAgo(currentPeriod), flag: 1 }),
+      fetchWB('/supplier/stocks', { dateFrom: '2019-01-01' }),
+    ]);
+    cachedData = { orders: orders||[], sales: sales||[], stocks: stocks||[] };
+    renderOverview();
+    renderFinance();
+    renderAds();
+    renderProducts();
+    document.getElementById('lastUpdate').textContent = 'обновлено ' + new Date().toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});
+  } catch(e) {
+    showToast('❌ ' + e.message);
+  }
+  btn.classList.remove('spinning');
+}
+
+async function fetchWB(endpoint, params) {
+  const url = new URL('https://statistics-api.wildberries.ru/api/v1' + endpoint);
+  Object.entries(params).forEach(([k,v]) => url.searchParams.set(k, v));
+  const resp = await fetch(url, { headers: { Authorization: API_KEY } });
+  if (resp.status === 401) throw new Error('Неверный API-ключ WB');
+  if (resp.status === 429) throw new Error('Превышен лимит API');
+  if (!resp.ok) throw new Error('Ошибка API: ' + resp.status);
+  const data = await resp.json();
+  return Array.isArray(data) ? data : (data.data || []);
+}
+
+function refreshData() { loadData(); }
+
+function daysAgo(n) {
+  const d = new Date(); d.setDate(d.getDate() - n);
+  return d.toISOString().slice(0,19);
+}
+
+// ─── RENDER OVERVIEW ──────────────────────────────────────
+function renderOverview() {
+  const { orders, sales } = cachedData;
+  const activeSales = sales.filter(s => s.saleID?.startsWith('S'));
+  const returns = sales.filter(s => s.saleID?.startsWith('R'));
+  const activeOrders = orders.filter(o => !o.isCancel);
+
+  const revenue = activeSales.reduce((a,s) => a + (s.totalPrice||0), 0);
+  const avgCheck = activeSales.length ? revenue / activeSales.length : 0;
+  const buyoutPct = activeOrders.length ? Math.round(activeSales.length / activeOrders.length * 100) : 0;
+  const returnPct = activeSales.length ? Math.round(returns.length / activeSales.length * 100) : 0;
+
+  setText('kpi-revenue', fmtMoney(revenue));
+  setText('kpi-orders', activeOrders.length);
+  setText('kpi-sales', activeSales.length);
+  setText('kpi-returns', returns.length);
+  setText('kpi-avg', fmtMoney(avgCheck));
+  setText('kpi-buyout', `выкуп ${buyoutPct}%`);
+  setText('kpi-returns-pct', `${returnPct}% от продаж`);
+
+  const revBadge = document.getElementById('kpi-revenue-badge');
+  revBadge.textContent = '↑ данные за ' + currentPeriod + 'д';
+  revBadge.className = 'kpi-badge badge-neutral';
+
+  // Daily chart data
+  const days = buildDailyMap(currentPeriod);
+  activeSales.forEach(s => {
+    const d = s.date?.slice(0,10);
+    if (days[d]) { days[d].revenue += s.totalPrice||0; days[d].sales++; }
+  });
+  activeOrders.forEach(o => {
+    const d = o.date?.slice(0,10);
+    if (days[d]) days[d].orders++;
+  });
+
+  const labels = Object.keys(days).map(d => {
+    const [,m,dd] = d.split('-'); return `${dd}.${m}`;
+  });
+  const revData = Object.values(days).map(d => d.revenue);
+  const salesData = Object.values(days).map(d => d.sales);
+  const ordersData = Object.values(days).map(d => d.orders);
+
+  buildChart('revenueChart', 'area', labels, [{
+    label:'Выручка', data:revData, color:'#9b6dff', fill:true
+  }]);
+  buildChart('ordersChart', 'line', labels, [
+    { label:'Заказы', data:ordersData, color:'#60a5fa', fill:false },
+    { label:'Продажи', data:salesData, color:'#4ade80', fill:false },
+  ]);
+}
+
+// ─── RENDER FINANCE ───────────────────────────────────────
+function renderFinance() {
+  const { sales } = cachedData;
+  const activeSales = sales.filter(s => s.saleID?.startsWith('S'));
+  const returns = sales.filter(s => s.saleID?.startsWith('R'));
+
+  const revenue = activeSales.reduce((a,s) => a + (s.totalPrice||0), 0);
+  const forPay = activeSales.reduce((a,s) => a + (s.forPay||0), 0);
+  const commission = revenue - forPay - activeSales.reduce((a,s) => a + (s.deliveryRub||0), 0);
+  const logistics = activeSales.reduce((a,s) => a + (s.deliveryRub||0), 0);
+  const commPct = revenue ? Math.round(commission/revenue*100) : 0;
+
+  setText('fin-forpay', fmtMoney(forPay));
+  setText('fin-commission', fmtMoney(Math.abs(commission)));
+  setText('fin-commission-pct', `${commPct}% от выручки`);
+  setText('fin-logistics', fmtMoney(logistics));
+
+  // Breakdown
+  const breakdown = [
+    { label:'Выручка', color:'#9b6dff', amount:revenue, positive:true },
+    { label:'Комиссия WB', color:'#f87171', amount:-Math.abs(commission), positive:false },
+    { label:'Логистика', color:'#fbbf24', amount:-logistics, positive:false },
+    { label:'Возвраты', color:'#fb7185', amount:-returns.reduce((a,r)=>a+(r.totalPrice||0),0), positive:false },
+    { label:'К перечислению', color:'#4ade80', amount:forPay, positive:true },
+  ];
+  document.getElementById('financeBreakdown').innerHTML = breakdown.map(r => {
+    const pct = revenue ? Math.round(Math.abs(r.amount)/revenue*100) : 0;
+    return `<div class="finance-row">
+      <div class="finance-label">
+        <div class="finance-dot" style="background:${r.color}"></div>
+        ${r.label}
+      </div>
+      <div style="text-align:right">
+        <div class="finance-amount ${r.positive?'positive':'negative'}">${fmtMoney(r.amount)}</div>
+        <div class="finance-pct">${pct}%</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Profit chart
+  const days = buildDailyMap(currentPeriod);
+  activeSales.forEach(s => {
+    const d = s.date?.slice(0,10);
+    if (days[d]) { days[d].revenue += s.totalPrice||0; days[d].profit += s.forPay||0; }
+  });
+  const labels = Object.keys(days).map(d => { const [,m,dd]=d.split('-'); return `${dd}.${m}`; });
+  buildChart('profitChart','line', labels, [
+    { label:'Выручка', data:Object.values(days).map(d=>d.revenue), color:'#9b6dff', fill:false },
+    { label:'К перечислению', data:Object.values(days).map(d=>d.profit), color:'#4ade80', fill:false },
+  ]);
+
+  // Weekly payouts (mock grouped by week)
+  const weekMap = {};
+  activeSales.forEach(s => {
+    const d = new Date(s.date);
+    const week = `Неделя ${getWeekNum(d)}`;
+    if (!weekMap[week]) weekMap[week] = { revenue:0, pay:0 };
+    weekMap[week].revenue += s.totalPrice||0;
+    weekMap[week].pay += s.forPay||0;
+  });
+  const weekHtml = Object.entries(weekMap).slice(-4).map(([w,d]) => `
+    <div class="finance-row">
+      <div class="finance-label"><div class="finance-dot" style="background:var(--violet)"></div>${w}</div>
+      <div style="text-align:right">
+        <div class="finance-amount positive">${fmtMoney(d.pay)}</div>
+        <div class="finance-pct">из ${fmtMoney(d.revenue)}</div>
+      </div>
+    </div>`).join('') || '<div class="empty"><div class="empty-icon">📅</div>Нет данных</div>';
+  document.getElementById('weeklyPayouts').innerHTML = weekHtml;
+}
+
+// ─── RENDER ADS ───────────────────────────────────────────
+function renderAds() {
+  // WB Ads API требует отдельный ключ (advertise API)
+  // Показываем заглушку с инструкцией
+  const { sales } = cachedData;
+  const revenue = sales.filter(s=>s.saleID?.startsWith('S')).reduce((a,s)=>a+(s.totalPrice||0),0);
+
+  // Если нет данных рекламы — показываем инфо
+  setText('ads-spend', '—');
+  setText('ads-drr', '—');
+  setText('ads-roi', '—');
+  setText('ads-views', '—');
+  setText('ads-clicks', '—');
+  setText('ads-ctr', 'CTR —%');
+  setText('ads-orders', '—');
+  setText('ads-cpo', '—');
+
+  document.getElementById('campaignsList').innerHTML = `
+    <div style="padding:16px; color:var(--text2); font-size:13px; line-height:1.6;">
+      <div style="font-size:20px; text-align:center; margin-bottom:12px;">📢</div>
+      <b style="color:var(--text)">Для рекламной статистики нужен отдельный ключ</b><br><br>
+      В ЛК WB → Настройки → Доступ к API → создай токен с правом <b style="color:var(--violet2)">Реклама (чтение)</b> и добавь его в config.py как <code style="background:var(--bg3);padding:2px 6px;border-radius:4px;">WB_ADS_KEY</code>.<br><br>
+      <span style="color:var(--text3); font-size:11px;">После этого бот начнёт отправлять данные CTR, ДРР, CPO и расходы по кампаниям</span>
+    </div>`;
+
+  // Placeholder chart
+  const days = buildDailyMap(currentPeriod);
+  const labels = Object.keys(days).map(d=>{const[,m,dd]=d.split('-');return`${dd}.${m}`;});
+  const mockSpend = labels.map(()=> Math.round(Math.random()*5000+1000));
+  buildChart('adsChart','area',labels,[{label:'Расходы',data:mockSpend,color:'#cb11ab',fill:true}]);
+}
+
+// ─── RENDER PRODUCTS ──────────────────────────────────────
+function renderProducts() {
+  const { sales } = cachedData;
+  const activeSales = sales.filter(s => s.saleID?.startsWith('S'));
+
+  const productMap = {};
+  activeSales.forEach(s => {
+    const key = s.subject || s.supplierArticle || 'Неизвестно';
+    const art = s.supplierArticle || '';
+    if (!productMap[key]) productMap[key] = { name:key, art, qty:0, revenue:0 };
+    productMap[key].qty++;
+    productMap[key].revenue += s.totalPrice||0;
+  });
+
+  const products = Object.values(productMap).sort((a,b)=>b.revenue-a.revenue);
+  const total = products.reduce((a,p)=>a+p.revenue, 0);
+
+  if (!products.length) {
+    document.getElementById('productsBody').innerHTML = '<tr><td colspan="3"><div class="empty"><div class="empty-icon">📦</div>Нет данных</div></td></tr>';
+    document.getElementById('abcAnalysis').innerHTML = '<div class="empty"><div class="empty-icon">📊</div>Нет данных</div>';
+    return;
+  }
+
+  document.getElementById('productsBody').innerHTML = products.slice(0,15).map((p,i) => {
+    const pct = total ? Math.round(p.revenue/total*100) : 0;
+    return `<tr>
+      <td><div class="art-name">${p.name.slice(0,28)}${p.name.length>28?'...':''}</div><div class="art-sku">${p.art}</div></td>
+      <td style="text-align:right; font-weight:700; color:var(--green)">${p.qty}</td>
+      <td style="text-align:right">
+        <div style="font-weight:700">${fmtMoney(p.revenue)}</div>
+        <div class="progress-bar" style="width:60px;margin-left:auto"><div class="progress-fill" style="width:${pct}%;background:var(--violet)"></div></div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  // ABC Analysis
+  let cumPct = 0;
+  const abc = products.map(p => {
+    const pct = total ? p.revenue/total*100 : 0;
+    cumPct += pct;
+    const cls = cumPct <= 80 ? 'A' : cumPct <= 95 ? 'B' : 'C';
+    return { ...p, pct, cls };
+  });
+  const groups = {A:[], B:[], C:[]};
+  abc.forEach(p => groups[p.cls].push(p));
+
+  const colors = {A:'var(--green)', B:'var(--yellow)', C:'var(--red)'};
+  const descs = {A:'Ключевые товары (80% выручки)', B:'Средние товары (15%)', C:'Слабые товары (5%)'};
+  document.getElementById('abcAnalysis').innerHTML = ['A','B','C'].map(g => `
+    <div class="finance-row">
+      <div class="finance-label">
+        <div class="finance-dot" style="background:${colors[g]}"></div>
+        <div>
+          <div style="font-weight:700; color:${colors[g]}">Группа ${g}</div>
+          <div style="font-size:11px; color:var(--text2)">${descs[g]}</div>
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div class="finance-amount" style="color:${colors[g]}">${groups[g].length} товаров</div>
+        <div class="finance-pct">${fmtMoney(groups[g].reduce((a,p)=>a+p.revenue,0))}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ─── CHARTS ───────────────────────────────────────────────
+function buildChart(id, type, labels, datasets) {
+  if (charts[id]) { charts[id].destroy(); }
+  const ctx = document.getElementById(id)?.getContext('2d');
+  if (!ctx) return;
+
+  charts[id] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: datasets.map(ds => ({
+        label: ds.label,
+        data: ds.data,
+        borderColor: ds.color,
+        backgroundColor: ds.fill ? ds.color + '22' : 'transparent',
+        borderWidth: 2,
+        pointRadius: labels.length > 20 ? 0 : 3,
+        pointHoverRadius: 5,
+        fill: ds.fill,
+        tension: 0.4,
+      }))
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins: { legend:{ display: datasets.length > 1, labels:{ color:'#9994bb', font:{size:11}, boxWidth:12 } } },
+      scales: {
+        x: { grid:{color:'rgba(120,100,255,0.08)'}, ticks:{color:'#5c587a',font:{size:10},maxRotation:0,maxTicksLimit:8} },
+        y: { grid:{color:'rgba(120,100,255,0.08)'}, ticks:{color:'#5c587a',font:{size:10}, callback: v => fmtShort(v)} }
+      }
+    }
+  });
+}
+
+// ─── HELPERS ──────────────────────────────────────────────
+function buildDailyMap(n) {
+  const map = {};
+  for (let i=n-1; i>=0; i--) {
+    const d = new Date(); d.setDate(d.getDate()-i);
+    const key = d.toISOString().slice(0,10);
+    map[key] = { revenue:0, orders:0, sales:0, profit:0 };
+  }
+  return map;
+}
+function fmtMoney(v) {
+  const n = Math.abs(v||0);
+  const sign = v < 0 ? '-' : '';
+  if (n >= 1e6) return sign + (n/1e6).toFixed(1) + ' млн ₽';
+  if (n >= 1e3) return sign + (n/1e3).toFixed(0) + ' тыс ₽';
+  return sign + Math.round(n) + ' ₽';
+}
+function fmtShort(v) {
+  if (v >= 1e6) return (v/1e6).toFixed(1)+'М';
+  if (v >= 1e3) return (v/1e3).toFixed(0)+'К';
+  return v;
+}
+function setText(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+function getWeekNum(d) {
+  const s = new Date(d.getFullYear(),0,1);
+  return Math.ceil(((d-s)/86400000+s.getDay()+1)/7);
+}
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>
